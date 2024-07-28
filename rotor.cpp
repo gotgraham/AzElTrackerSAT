@@ -22,7 +22,7 @@
 
 Rotor::Rotor(uint8_t axis, uint8_t sp, uint8_t dp, uint8_t hp, uint8_t degStep)
 {
-  
+
   //Initialize instance variables
   ax = axis;
   stepPin = sp;
@@ -108,12 +108,12 @@ long Rotor::getTgtPos()
 void Rotor::goHome()
 {
   //If we are already home or dont have home switch, just take current position as home
-  if (homeType = NO_HOME || isHome())
+  if (homeType == NO_HOME || isHome())
   {
     stat = READY;
     currPos = 0;
   }
-  
+
   else
   {
     //Otherwise, start moving down/left and set HOME_1 status
@@ -127,7 +127,7 @@ int Rotor::isHome()
 {
   //Returns analog or digital home sensor based on pin chosen and if switch is active high or low.
   bool tmp = 0;
-  if (homeType = NO_HOME)
+  if (homeType == NO_HOME)
   {
     return -1;
   }
@@ -155,11 +155,11 @@ void Rotor::doStep()
     //If we error out, we shouldn't allow movement
     return;
   }
-  
+
   //Find the delta between desired and current
   long delPos = desPos - currPos;
   int OKToMove = 0;
- 
+
   //Wrap angle to less than 180 for quickest path
   if (delPos > 18000)
   {

@@ -11,20 +11,18 @@
 
 //Change these to match your specific rotor/steppers
 //To avoid floats this is in 100th of a degree (deg*100)
-#define AZ_DEG_PER_STEP 43 //(deg*100)
+#define AZ_DEG_PER_STEP 41 //(deg*100)
 #define EL_DEG_PER_STEP 6 //(deg*100)
 
 //Currently not used, however this is simply 1/(x/100) of the above
 #define AZ_STEPS_PER_DEG 2.389
 #define EL_STEPS_PER_DEG 16.66
 
-
-
 //Change these to match your electrical setup
-#define AZ_STEP_PIN 9
-#define AZ_DIR_PIN 4
+#define AZ_STEP_PIN 6
+#define AZ_DIR_PIN 3
 
-#define EL_STEP_PIN 3
+#define EL_STEP_PIN 5
 #define EL_DIR_PIN 2
 
 #define EL_HOME_PIN_DIG 7 //Digital home pin
@@ -33,7 +31,7 @@
 #define AZ_HOME_PIN_DIG 8  //Digital home pin
 #define AZ_HOME_PIN_ANL A1 //Analog home pin
 
-#define INVERT_DIG_HOME 0 //0: Home switch high when at home, 1: Home switch low when at home
+#define INVERT_DIG_HOME 1 //0: Home switch high when at home, 1: Home switch low when at home
 #define ANALOG_HOME_VAL 700 // A2D value above which the sensor is considered at home
 
 #define POS_HYST 80 //Hysteresis (deg*100)

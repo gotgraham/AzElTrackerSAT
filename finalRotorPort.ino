@@ -18,14 +18,33 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-
+#include <WiFi.h>
+#include <WiFiUdp.h>
+#include <string.h>
 
 #include "uart.h"
 #include "rotor.h"
 
+// WiFi network name and password:
+const char * networkName = "your_wifi_ssid";
+const char * networkPswd = "your_wifi_password";
+
+// SAT Controller IP address and port
+const char * sendUdpAddress = "sat_controller_ip";
+const int sendUdpPort = 12001;
+const int listenUdpPort = 12000;
+
+// Are we currently connected?
+boolean connected = false;
+// The udp library class
+WiFiUDP udp;
+// Buffer to hold incoming packet
+char udpPacketBuffer[255];
+
 //Define rotor objects
 Rotor az = Rotor(AZI, AZ_STEP_PIN, AZ_DIR_PIN, -1, AZ_DEG_PER_STEP);
-Rotor el = Rotor(ELE, EL_STEP_PIN, EL_DIR_PIN, EL_HOME_PIN_ANL, EL_DEG_PER_STEP);
+//Rotor el = Rotor(ELE, EL_STEP_PIN, EL_DIR_PIN, EL_HOME_PIN_ANL, EL_DEG_PER_STEP);
+Rotor el = Rotor(ELE, EL_STEP_PIN, EL_DIR_PIN, -1, EL_DEG_PER_STEP);
 
 //Initialize variables
 long prevMillis=0;
@@ -49,20 +68,27 @@ bool task1sRun = 0;
 int ledTmr = 0;
 bool ledOn = 0;
 
-
 void setup()
 {
-  //Enable Serial, setup pins, then home EL axis.
+  // Enable Serial, setup pins, then home EL axis.
   enableUART();
+
+  // Connect to the WiFi network
+  connectToWiFi(networkName, networkPswd);
 
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, 0);
-  
-  //Change this to match your home pin setup
-  pinMode(EL_HOME_PIN_ANL, INPUT);
+
+  pinMode(AZ_STEP_PIN, OUTPUT);
+  pinMode(AZ_DIR_PIN, OUTPUT);
+  pinMode(EL_DIR_PIN, OUTPUT);
+  pinMode(EL_STEP_PIN, OUTPUT);
+
+  // Change this to match your home pin setup
+  // pinMode(EL_HOME_PIN_ANL, INPUT);
+  pinMode(NO_HOME, INPUT);
 
   el.goHome();
-
 }
 
 void loop()
@@ -80,6 +106,7 @@ void loop()
   {
     task10msRun = 0;
     parseCommand();
+    listenForCommand();
   }
   if (task20msRun)
   {
@@ -91,8 +118,6 @@ void loop()
     task1sRun = 0;
     updateLED();
   }
-
-
 }
 
 void getDebug()
@@ -151,9 +176,6 @@ void updateLED()
     }
   }
   ledTmr++;
-
-
-
 }
 
 void getTime()
@@ -188,10 +210,7 @@ void getTime()
       count1s++;
     }
   }
-
-
 }
-
 
 void parseCommand()
 {
@@ -205,7 +224,10 @@ void parseCommand()
   //get command, if valid command, actuate command
   switch (c)
   {
-      
+    case 'I':
+      Serial.println(WiFi.localIP());
+      break;
+
     case CMD_MOVETO:
       //ASCII to hex
       desAz = ((100 * (buf[0] - '0')) + (10 * (buf[1] - '0')) + (buf[2] - '0'));
@@ -273,7 +295,7 @@ void parseCommand()
       outputAngle(el.getPos(), true);
       break;
     case CMD_NULL:
-    //Invalid command, do nothing
+      //Invalid command, do nothing
       break;
   }
 
@@ -281,4 +303,97 @@ void parseCommand()
   {
     Serial.write(0x0D);
   }
+}
+
+void connectToWiFi(const char * ssid, const char * pwd){
+  Serial.println("Connecting to WiFi network: " + String(ssid));
+
+  // delete old config
+  WiFi.disconnect(true);
+  //register event handler
+  WiFi.onEvent(WiFiEvent);
+
+  //Initiate connection
+  WiFi.begin(ssid, pwd);
+
+  Serial.println("Waiting for WIFI connection...");
+}
+
+// Wifi event handler
+void WiFiEvent(WiFiEvent_t event){
+    switch(event) {
+      case ARDUINO_EVENT_WIFI_STA_GOT_IP:
+          //When connected set
+          Serial.print("WiFi connected! IP address: ");
+          Serial.println(WiFi.localIP());
+          //initializes the UDP state
+          //This initializes the transfer buffer
+          udp.begin(WiFi.localIP(),listenUdpPort);
+          connected = true;
+          break;
+      case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
+          Serial.println("WiFi lost connection");
+          connected = false;
+          break;
+      default: break;
+    }
+}
+
+// Listen for incoming UDP packets
+void listenForCommand()
+{
+  int packetSize = udp.parsePacket();
+  if (packetSize) {
+    // Read the packet into packetBufffer
+    int len = udp.read(udpPacketBuffer, 255);
+    if (len > 0) {
+      udpPacketBuffer[len] = 0;
+    }
+    String command = xmlTakeParam(String(udpPacketBuffer), "PST");
+    if (command == "EL?") {
+      udp.beginPacket(udp.remoteIP(), sendUdpPort);
+      String response = buildAngleResponse(el.getPos(), "EL:");
+      udp.write(reinterpret_cast<const uint8_t*>(response.c_str()), response.length() + 1);
+      udp.endPacket();
+    }
+    else if (command == "AZ?") {
+      udp.beginPacket(udp.remoteIP(), sendUdpPort);
+      String response = buildAngleResponse(az.getPos(), "AZ:");
+      udp.write(reinterpret_cast<const uint8_t*>(response.c_str()), response.length() + 1);
+      udp.endPacket();
+    }
+    else if (command.indexOf("STOP") >= 0) {
+      az.setMode(MOVE_STOP);
+      el.setMode(MOVE_STOP);
+    }
+    else {
+      if (command.indexOf("AZIMUTH") >= 0) {
+        int ang = xmlTakeParam(command, "AZIMUTH").toInt();//.substring(command.indexOf("<AZIMUTH>") + 9, command.indexOf("</AZIMUTH>")).toInt();
+        az.setPos(ang * 100);
+        az.setMode(MOVE_TO);
+      }
+      if (command.indexOf("ELEVATION") >= 0) {
+        int ang = xmlTakeParam(command, "ELEVATION").toInt();
+        el.setPos(ang * 100);
+        el.setMode(MOVE_TO);
+      }
+    }
+  }
+}
+
+// Build a response string for an AZ or EL angle
+String buildAngleResponse(long ang, String prefix) {
+  ang = ang / 100; //rescale
+  return prefix + ang + "<CR>";
+}
+
+// Parse out an XML parameter from a string
+String xmlTakeParam(String inStr, String needParam) {
+  if(inStr.indexOf("<"+needParam+">")>=0){
+     int count = needParam.length();
+     int startIndex = inStr.indexOf("<"+needParam+">");
+     int stopIndex = inStr.indexOf("</"+needParam+">");
+     return inStr.substring(startIndex + count + 2, stopIndex);
+  }
+  return "not found";
 }
