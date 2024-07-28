@@ -1,14 +1,31 @@
-# AzElTracker
+# AzElTrackerSAT
 Arduino firmware to control https://www.thingiverse.com/thing:4664558, designed by jbyrns
 
-This project started as a class project and was designed to be compatible (enough) to work with gPredict/rotctrld. It seems to run pretty well.
+Based off of AzElTracker, designed by https://github.com/ajohns1288/AzElTracker
+
+This extends the AzElTracker by adding Wifi capability, specifically emulating the part of the PstRotator UDP interface that the CSN Technologies S.A.T. Controller uses. 
+
+# To configure within the SAT controller:
+
+1. Set the rotator type to "PstRotator"
+2. Set the IP address to match that of this controller (you can issue an 'I' command over the USB serial connection to get the IP address)
+
+# In the controller software:
+
+1. Set your network SSID and password in FinalRotatorPort.ino
+   const char * networkName = "your_wifi_ssid";
+   const char * networkPswd = "your_wifi_password";
+2. Set the IP address of your SAT controller in FinalRotatorPort.ino
+   const char * sendUdpAddress = "sat_controller_ip";
 
 ## Items Needed
-1x Arduino Nano or equivalent
+1x Arduino Nano ESP32 or equivalent
 
 2x A4988 Stepper Boards
 
 2x Stepper Motors
+
+These items are optional - I disabled the homing for now
 
 1x Small Magnet
 
@@ -29,6 +46,8 @@ See section below for implemented commands
 Since different people might want to use the same logic but for different hardware, the hardware specific values are in the rotorParams.h file. This way, you can tailor the code to your specific application without having to change mulitple variables all over the place
 
 ## Commands
+If you choose not to use the wifi interface, the GS232 protocol is still fully supported: 
+
 Command enumerations based on GS232 Protocol; works with 'rotctld -m 606 -r /dev/xxx' on RaspPi
 
 CMD_R 'R' - Move right continously
@@ -60,6 +79,8 @@ CMD_GET_EL 'B' - Display elevation position only
 CMD_DEBUG 'Q' - Displays current positions/status/modes of rotor
 
 CMD_SET_HOME 'F' - Unimplmented, may be used to set current position as home in future release
+
+CMD_I 'I' - Print the controller IP address
 
 
 ## Drawbacks
