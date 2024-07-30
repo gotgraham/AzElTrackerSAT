@@ -18,12 +18,17 @@ This extends the AzElTracker by adding Wifi capability, specifically emulating t
 2. Set the IP address of your SAT controller in FinalRotatorPort.ino
    const char * sendUdpAddress = "sat_controller_ip";
 
-## Items Needed
-1x Arduino Nano ESP32 or equivalent
+## Items Needed For This Controller
+1x Arduino Nano ESP32 or equivalent - https://www.amazon.com/Arduino-ABX00083-Bluetooth-MicroPython-Compatible/
 
-2x A4988 Stepper Boards
+***** 2x A4988 Stepper Boards. 
+***** In testing, I'm seeing a lot of RFI on the 2m band. It sounds like the TMC2208 stepper board (drop in replacement) is substantially quieter. 
+***** I'll update this with my findings once I have the boards. 
+***** https://amazon.com/BIQU-Printer-Stepstick-TMC2208-Heatsink/
 
-2x Stepper Motors
+1x Stepper Breakout board for Nano - https://www.amazon.com/dp/B0834KK49M
+
+2x Stepper Motors - https://www.amazon.com/dp/B08KVT823H
 
 These items are optional - I disabled the homing for now
 
